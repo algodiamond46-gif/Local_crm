@@ -808,6 +808,9 @@ def api_script_save():
     return jsonify({"ok": True})
 
 
+init_db()  # ensure DB exists on startup
+
 if __name__ == "__main__":
-    init_db()
-    app.run(host="127.0.0.1", port=5050, debug=True)
+    port = int(os.environ.get("PORT", 5050))
+    debug = os.environ.get("RENDER") is None
+    app.run(host="0.0.0.0", port=port, debug=debug)
