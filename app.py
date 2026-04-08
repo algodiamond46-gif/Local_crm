@@ -12,14 +12,29 @@ DB_PATH = BASE_DIR / "crm.db"
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "diamond-local-crm-2026"
+app.config["PROPAGATE_EXCEPTIONS"] = True
 
 import logging
 logging.basicConfig(level=logging.INFO)
 
 @app.errorhandler(500)
 def handle_500(e):
-    app.logger.error(f"500 error: {e}")
-    return f"<h1>שגיאה</h1><pre>{e}</pre>", 500
+    import traceback
+    tb = traceback.format_exc()
+    app.logger.error(f"500 error: {e}\n{tb}")
+    return f"<h1>שגיאה</h1><pre>{e}\n\n{tb}</pre>", 500
+
+@app.route("/health")
+def health():
+    """Simple health check — if you see this, the app loaded fine."""
+    try:
+        db = sqlite3.connect(DB_PATH)
+        db.execute("SELECT 1")
+        db.close()
+        db_status = f"DB OK at {DB_PATH}"
+    except Exception as e:
+        db_status = f"DB ERROR: {e}"
+    return f"<h1>OK</h1><p>{db_status}</p><p>BASE_DIR: {BASE_DIR}</p>"
 
 # ── Constants ───────────────────────────────────────────────────────
 PIPELINE_STAGES = [
@@ -817,7 +832,11 @@ def api_script_save():
     return jsonify({"ok": True})
 
 
-init_db()  # ensure DB exists on startup
+try:
+    init_db()
+    logging.info(f"DB initialized at {DB_PATH}")
+except Exception as e:
+    logging.error(f"init_db failed: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))
