@@ -13,6 +13,14 @@ DB_PATH = BASE_DIR / "crm.db"
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "diamond-local-crm-2026"
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
+@app.errorhandler(500)
+def handle_500(e):
+    app.logger.error(f"500 error: {e}")
+    return f"<h1>שגיאה</h1><pre>{e}</pre>", 500
+
 # ── Constants ───────────────────────────────────────────────────────
 PIPELINE_STAGES = [
     "ליד חדש", "ניסיון קשר", "שיחה ראשונה",
@@ -384,6 +392,7 @@ def lead_detail(lid):
         budget_options=BUDGET_OPTIONS, readiness_options=READINESS_OPTIONS,
         experience_options=EXPERIENCE_OPTIONS, packages=PACKAGES,
         payment_methods=PAYMENT_METHODS, wa_templates=WA_TEMPLATES,
+        debt_statuses=DEBT_STATUSES, today=today_iso(),
         script_tree=json.dumps(SCRIPT_TREE, ensure_ascii=False))
 
 @app.route("/lead/<int:lid>/edit", methods=["POST"])
@@ -485,7 +494,7 @@ def update_debt(did):
 @app.route("/pipeline")
 def pipeline():
     leads = fetchall("SELECT * FROM leads WHERE stage='נסגר' ORDER BY datetime(updated_at) DESC")
-    payments = fetchall("SELECT * FROM payments ORDER BY payment_date DESC")
+    payments = fetchall("SELECT p.*, l.name FROM payments p JOIN leads l ON p.lead_id=l.id ORDER BY p.payment_date DESC")
     # Monthly stats
     months = {}
     for p in payments:
